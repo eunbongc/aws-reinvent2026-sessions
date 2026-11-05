@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>re:Invent 2026 세션 목록 (공유형)</title>
+<style>
+body { font-family: 'Malgun Gothic', -apple-system, sans-serif; max-width: 1300px; margin: 0 auto; padding: 28px 20px; color: #222; line-height: 1.8; }
+h1 { font-size: 20px; margin-bottom: 4px; }
+h2 { font-size: 15px; margin-top: 24px; margin-bottom: 10px; border-bottom: 2px solid #003876; padding-bottom: 5px; color: #003876; }
+.sub { font-size: 11px; color: #888; margin-bottom: 12px; }
+.meta { font-size: 11px; color: #555; background: #f8f9fa; border-left: 3px solid #003876; padding: 8px 12px; margin-bottom: 14px; line-height: 1.7; }
+
+/* 로그인 박스 */
+.auth-bar { display:flex; align-items:center; gap:8px; justify-content:flex-end; margin-bottom:10px; flex-wrap:wrap; }
+.auth-bar .who { font-size:12px; color:#003876; font-weight:600; }
+.auth-bar input { font-family:inherit; font-size:12px; padding:5px 9px; border:1px solid #ddd; width:230px; outline:none; }
+.auth-bar input:focus { border-color:#003876; }
+.auth-btn { font-family:inherit; font-size:12px; padding:5px 12px; border:1px solid #003876; background:#003876; color:#fff; cursor:pointer; border-radius:3px; }
+.auth-btn:hover { background:#002a5c; }
+
+.filter-group { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px; align-items: center; }
+.filter-label { font-size: 10px; color: #999; font-weight: 600; width: 56px; flex-shrink: 0; }
+.filter-btn { font-family: inherit; font-size: 11px; padding: 3px 10px; border: 1px solid #bbb; background: #fff; color: #444; cursor: pointer; border-radius: 3px; transition: all .12s; }
+.filter-btn:hover { background: #f0f0f0; }
+.filter-btn.active        { background: #003876; color: #fff; border-color: #003876; font-weight: 600; }
+.filter-btn.active-day    { background: #444;    color: #fff; border-color: #444;    font-weight: 600; }
+.filter-btn.active-venue  { background: #666;    color: #fff; border-color: #666;    font-weight: 600; }
+.filter-btn.active-verdict { background: #1a7a3b; color: #fff; border-color: #1a7a3b; font-weight: 600; }
+.search-row { display: flex; align-items: center; gap: 10px; margin: 8px 0 10px; }
+.search-row input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid #ddd; width: 300px; outline: none; }
+.search-row input:focus { border-color: #003876; }
+.count-label { font-size: 11px; color: #888; }
+.reset-btn { font-family: inherit; font-size: 11px; padding: 3px 10px; border: 1px solid #ddd; background: #fff; color: #888; cursor: pointer; border-radius: 3px; }
+.reset-btn:hover { background: #fee; color: #c00; border-color: #c00; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { border: 1px solid #ddd; padding: 7px 8px; text-align: left; vertical-align: top; }
+th { background: #f5f5f5; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; }
+th:hover { background: #ebebeb; }
+tbody tr.data-row { cursor: pointer; }
+tbody tr.data-row:hover { background: #f8f9fa; }
+tbody tr.data-row.expanded { background: #f0f4fa; }
+tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; padding: 10px 16px; line-height: 1.75; cursor: default; border-top: none; }
+.pick-cell { text-align: center; font-size: 14px; user-select: none; min-width: 54px; }
+.badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 2px; font-weight: 600; margin: 1px 1px 1px 0; white-space: nowrap; }
+.b-customer  { background: #003876; color: #fff; }
+.b-sponsored { background: #e0e0e0; color: #777; }
+.b-new       { background: #e8f5e9; color: #2e7d32; }
+.b-partner   { background: #f5f5f5; color: #999; border: 1px solid #ddd; }
+.b-robotics  { background: #e3f2fd; color: #1565c0; }
+.b-retail    { background: #fff8e1; color: #c77700; }
+.b-keynote   { background: #ede7f6; color: #6a1b9a; }
+.b-walkup    { background: #e0f2f1; color: #00695c; }
+.b-full      { background: #fdecec; color: #c0392b; border: 1px solid #f3c1bc; }
+.code { font-family: monospace; font-size: 11px; color: #666; }
+.verdict { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; white-space:nowrap; }
+.v-keep { background:#e8f5ec; color:#1a7a3b; }
+.v-hold { background:#fff4e0; color:#b9770e; }
+.v-drop { background:#fdecec; color:#c0392b; }
+.company-cell { font-size: 11px; font-weight: 600; color: #003876; }
+.company-aws  { font-size: 11px; color: #aaa; }
+.ko-text { font-size: 11px; color: #333; line-height: 1.6; }
+.time-info  { font-size: 12px; font-weight: 600; color: #222; }
+.day-info   { font-size: 11px; color: #555; }
+.venue-info { font-size: 10px; color: #999; display: block; margin-top: 1px; }
+.no-time    { font-size: 10px; color: #bbb; }
+.note { font-size: 11px; color: #666; margin-top: 6px; }
+.sort-th-asc::after  { content: " ▲"; font-size: 9px; }
+.sort-th-desc::after { content: " ▼"; font-size: 9px; }
+
+/* 내 분석 편집기 */
+.vbtn { font-family:inherit; font-size:11px; padding:3px 10px; margin-right:4px; border:1px solid #ccc; background:#fff; color:#555; cursor:pointer; border-radius:12px; }
+.vbtn:hover { background:#f0f0f0; }
+.vbtn-on.v-keep { background:#e8f5ec; color:#1a7a3b; border-color:#1a7a3b; font-weight:700; }
+.vbtn-on.v-hold { background:#fff4e0; color:#b9770e; border-color:#b9770e; font-weight:700; }
+.vbtn-on.v-drop { background:#fdecec; color:#c0392b; border-color:#c0392b; font-weight:700; }
+.vbtn-on.v-none { background:#eee; color:#333; border-color:#999; font-weight:700; }
+.note-edit { width:100%; min-height:70px; font-family:inherit; font-size:12px; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; margin:2px 0 6px; resize:vertical; }
+.save-btn { font-family:inherit; font-size:11px; padding:4px 12px; border:1px solid #003876; background:#003876; color:#fff; cursor:pointer; border-radius:3px; }
+.save-btn:hover { background:#002a5c; }
+
+/* 토스트 */
+#toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#222; color:#fff; font-size:12px; padding:9px 16px; border-radius:6px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:100; }
+</style>
+</head>
+<body>
+<div class="auth-bar" id="authBox"></div>
+
+<h1 onclick="location.reload()" style="cursor:pointer;" title="클릭하여 새로고침">re:Invent 2026 세션 목록 <span style="font-size:12px;color:#888;">(공유형 · 로그인하면 내 선택 저장)</span></h1>
+<div class="sub">AWS re:Invent 2026 &nbsp;·&nbsp; 2026년 11월 30일 ~ 12월 4일, 라스베이거스 &nbsp;·&nbsp; 수집일: 2026-10-30</div>
+<div class="meta">
+  전체 2,372개 세션 중 4개 기준으로 수집 — Customer story 65 · Robotics 13 · Retail 16 · Business Agents 221 (합 315건)<br>
+  → 중복 제거 <strong>312개</strong> → 핸즈온(Workshop·Lab 등) 77개 제외 <strong>235개</strong> → 키노트 4 · 파티 2 추가 = <strong>총 241개</strong><br>
+  <span style="color:#003876;">로그인하면 우선순위(⭕ 셀 클릭)·참석여부·메모가 내 계정에 저장됩니다. 다른 사람에게는 보이지 않습니다.</span>
+</div>
+
+<h2>세션 목록</h2>
+<div class="filter-group">
+  <span class="filter-label">분류</span>
+  <button class="filter-btn active" onclick="setFilter('cat','all',this)">전체 (241)</button>
+  <button class="filter-btn" id="btn-my-picks" onclick="setFilter('cat','my_picks',this)">⭕ 우선순위</button>
+  <button class="filter-btn" onclick="setFilter('cat','keynote',this)">🎤 키노트 (4)</button>
+  <button class="filter-btn" onclick="setFilter('cat','party',this)">🎉 파티 (2)</button>
+  <button class="filter-btn" onclick="setFilter('cat','customer_story',this)">★ 실제 기업 사례 (52)</button>
+  <button class="filter-btn" onclick="setFilter('cat','robotics',this)">🤖 Robotics (10)</button>
+  <button class="filter-btn" onclick="setFilter('cat','retail',this)">🛒 Retail (14)</button>
+  <button class="filter-btn" onclick="setFilter('cat','business_agents',this)">Business Agents (160)</button>
+</div>
+<div class="filter-group">
+  <span class="filter-label">요일</span>
+  <button class="filter-btn active-day" id="btn-day-all" onclick="setDayFilter('all',this)">전체</button>
+  <button class="filter-btn" id="btn-day-mon" onclick="toggleDay('Monday, Nov 30',this)">11/30 월</button>
+  <button class="filter-btn" id="btn-day-tue" onclick="toggleDay('Tuesday, Dec 01',this)">12/1 화</button>
+  <button class="filter-btn" id="btn-day-wed" onclick="toggleDay('Wednesday, Dec 02',this)">12/2 수</button>
+  <button class="filter-btn" id="btn-day-thu" onclick="toggleDay('Thursday, Dec 03',this)">12/3 목</button>
+  <button class="filter-btn" id="btn-day-fri" onclick="toggleDay('Friday, Dec 04',this)">12/4 금</button>
+</div>
+<div class="filter-group">
+  <span class="filter-label">장소</span>
+  <button class="filter-btn active-venue" onclick="setFilter('venue','all',this)">전체</button>
+  <button class="filter-btn" onclick="setFilter('venue','Venetian',this)">Venetian</button>
+  <button class="filter-btn" onclick="setFilter('venue','MGM Grand',this)">MGM Grand</button>
+  <button class="filter-btn" onclick="setFilter('venue','Caesars Forum',this)">Caesars Forum</button>
+  <button class="filter-btn" onclick="setFilter('venue','Wynn/Encore',this)">Wynn/Encore</button>
+  <button class="filter-btn" onclick="setFilter('venue','Caesars Palace',this)">Caesars Palace</button>
+</div>
+<div class="filter-group">
+  <span class="filter-label">참석 여부</span>
+  <button class="filter-btn active-verdict" id="btn-vd-all" onclick="setVerdictFilter('all',this)">전체</button>
+  <button class="filter-btn" onclick="setVerdictFilter('keep',this)">참석</button>
+  <button class="filter-btn" onclick="setVerdictFilter('hold',this)">보류</button>
+  <button class="filter-btn" onclick="setVerdictFilter('drop',this)">제외</button>
+  <button class="filter-btn" onclick="setVerdictFilter('none',this)">미검토</button>
+</div>
+<div class="search-row">
+  <input type="text" id="searchInput" placeholder="기업명 / 제목 / 코드 / 한글 해석 검색..." oninput="render()">
+  <span class="count-label" id="countLabel">241개 표시 중</span>
+  <button class="reset-btn" onclick="copyPicks(2)" id="copy-btn2">📋 ⭕⭕이상 복사</button>
+  <button class="reset-btn" onclick="copyPicks(1)" id="copy-btn">📋 ⭕ 전체 복사</button>
+</div>
+<table id="tbl">
+<thead>
+  <tr>
+    <th onclick="doSort('picks')" style="width:70px;text-align:center;">우선순위</th>
+    <th onclick="doSort('code')" style="width:78px;">코드</th>
+    <th onclick="doSort('company')" style="width:115px;">발표 기업</th>
+    <th onclick="doSort('title')" style="width:19%;">세션 제목</th>
+    <th onclick="doSort('ko_desc')">한글 해석</th>
+    <th onclick="doSort('features')" style="width:90px;">특징</th>
+    <th onclick="doSort('start_time')" style="width:120px;">일정 / 장소</th>
+    <th onclick="doSort('verdict')" style="width:76px;">참석 여부</th>
+  </tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
+<p class="note" id="noResult" style="display:none;">조건에 맞는 세션이 없습니다.</p>
+
+<div id="toast"></div>
+
+<!-- Model(공개) → 설정 → 수파베이스 클라이언트 → Controller 순으로 로드 -->
+<script src="sessions.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+</body>
+</html>
