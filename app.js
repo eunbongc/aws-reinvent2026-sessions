@@ -20,6 +20,9 @@ const ALL = window.SESSIONS || [];
 // 로그인한 사용자의 선택을 메모리에 담는 맵 (sessionID -> {pick, verdict, note})
 // 기존 PICKS / ANALYSIS 하드코딩을 대체한다.
 let MY = {};          // 전체: { [sessionID]: {pick, verdict, note} }
+// 제작자가 공개한 기본 선택 (뷰 owner_picks, 읽기 전용, 메모 제외).
+// 비로그인 상태에서만 이 값을 보여준다. 로그인하면 본인 데이터(MY)로 전환된다.
+let PUB = {};         // { [sessionID]: {pick, verdict, note:''} }
 let currentUser = null;
 
 /* ---------------------------------------------------------------
@@ -38,10 +41,13 @@ const V_NEXT  = { '':'keep', keep:'hold', hold:'drop', drop:'' }; // 클릭 순�
 /* ---------------------------------------------------------------
  * 2. 선택 데이터 접근 — 기존 loadPicks()/ANALYSIS 를 MY 로 대체
  * ------------------------------------------------------------- */
-function myOf(sid)   { return MY[sid] || { pick:0, verdict:'', note:'' }; }
+// 로그인 상태면 본인 선택(MY), 비로그인이면 제작자 공개 선택(PUB)을 기준으로 한다.
+function activeMap() { return currentUser ? MY : PUB; }
+function myOf(sid)   { return activeMap()[sid] || { pick:0, verdict:'', note:'' }; }
 function loadPicks() {                       // 기존 인터페이스 유지
+  const src = activeMap();
   const p = {};
-  Object.keys(MY).forEach(function(sid){ if (MY[sid].pick > 0) p[sid] = MY[sid].pick; });
+  Object.keys(src).forEach(function(sid){ if (src[sid].pick > 0) p[sid] = src[sid].pick; });
   return p;
 }
 
@@ -184,7 +190,7 @@ function pickTd(s, cnt) {
   td.className = 'pick-cell';
   if (cnt > 0) td.style.background = '#f0f8ff';
   td.textContent = PICK_ICONS[cnt] || '';
-  td.title = currentUser ? '클릭: 우선순위 올리기 (⭕→⭕⭕→⭕⭕⭕→없음)' : '로그인 후 편집 가능';
+  td.title = currentUser ? '클릭: 우선순위 올리기 (⭕→⭕⭕→⭕⭕⭕→없음)' : '제작자의 선택입니다. 로그인하면 나만의 선택을 저장할 수 있습니다.';
   if (currentUser) {
     td.style.cursor = 'pointer';
     td.addEventListener('click', function(e) {
@@ -274,8 +280,7 @@ function editorFor(s) {
   var wrap = document.createElement('div');
   var m = myOf(s.sessionID);
   if (!currentUser) {
-    wrap.innerHTML = '<span style="color:#888;">내 분석 — 로그인하면 참석여부와 메모를 저장할 수 있습니다.</span>'
-      + (m.note ? '<br>' + linkify(esc(m.note)).replace(/\n/g,'<br>') : '');
+    wrap.innerHTML = '<span style="color:#888;">로그인하면 나만의 우선순위·참석여부·메모를 저장할 수 있습니다.</span>';
     return wrap;
   }
   // 참석여부 토글 버튼
@@ -360,6 +365,18 @@ function setPick(sid, v)    { upsertMine(sid, { pick: v }); }
 function setVerdict(sid, v) { upsertMine(sid, { verdict: v }); }
 function setNote(sid, t)    { upsertMine(sid, { note: t }).then(function(){ toast('메모 저장됨'); }); }
 
+// 제작자 공개 선택 읽기. 뷰 owner_picks 는 anon 에게 select 만 허용되며
+// session_id / pick / verdict 세 컬럼만 노출한다(메모는 포함하지 않음).
+async function loadPublic() {
+  PUB = {};
+  if (!sb) return;
+  var res = await sb.from('owner_picks').select('session_id, pick, verdict');
+  if (res.error) { console.warn('공개 선택 불러오기 실패(뷰 owner_picks 확인):', res.error.message); return; }
+  (res.data || []).forEach(function(r) {
+    PUB[r.session_id] = { pick: r.pick||0, verdict: r.verdict||'', note: '' };
+  });
+}
+
 async function loadMine() {
   MY = {};
   if (!sb || !currentUser) { render(); return; }
@@ -420,9 +437,11 @@ async function boot() {
   reflectAuth();
   render();
   if (!sb) {
-    toast('수파베이스 미설정 — 열람 전용으로 동작합니다. (config.js 확인)');
+    toast('수파베이스 미설정으로 열람 전용으로 동작합니다. (config.js 확인)');
     return;
   }
+  await loadPublic();      // 비로그인 기본 화면 = 제작자 선택
+  render();
   var g = await sb.auth.getUser();
   currentUser = (g.data && g.data.user) || null;
   reflectAuth();
