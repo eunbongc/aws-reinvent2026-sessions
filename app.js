@@ -75,14 +75,14 @@ function setDayFilter(mode, btn) {
     state.days.clear();
     document.getElementById('btn-day-all').className = 'filter-btn active-day';
   }
-  expanded.clear(); render();
+  expanded.clear(); render(); updateIcsButton();
 }
 function toggleDay(day, btn) {
   if (state.days.has(day)) { state.days.delete(day); btn.classList.remove('active-day'); }
   else { state.days.add(day); btn.classList.add('active-day'); }
   document.getElementById('btn-day-all').className =
     state.days.size === 0 ? 'filter-btn active-day' : 'filter-btn';
-  expanded.clear(); render();
+  expanded.clear(); render(); updateIcsButton();
 }
 function setFilter(type, val, btn) {
   state[type] = val;
@@ -338,6 +338,154 @@ function copyPicks(minPicks) {
 }
 
 /* ---------------------------------------------------------------
+ * 6b. 요일별 iCal(.ics) 다운로드
+ *   - 선택된 요일(들)의 "참석" 세션만 담아 그때그때 생성한다. 서버에 저장하지 않는다.
+ *   - 라스베이거스 현지시각(America/Los_Angeles) 기준, VTIMEZONE을 넣어 DST 경계와 무관하게 정확히 표시한다.
+ * ------------------------------------------------------------- */
+var ICS_DAY_MAP = {
+  'Monday, Nov 30':    { y:2026, m:11, d:30 },
+  'Tuesday, Dec 01':   { y:2026, m:12, d:1  },
+  'Wednesday, Dec 02': { y:2026, m:12, d:2  },
+  'Thursday, Dec 03':  { y:2026, m:12, d:3  },
+  'Friday, Dec 04':    { y:2026, m:12, d:4  }
+};
+// 미국 라스베이거스(네바다)는 2026년에도 11월 1일에 PDT→PST로 전환한다. re:Invent 기간(11/30~12/4)은 전부 PST(UTC-8).
+var ICS_TZID = 'America/Los_Angeles';
+
+function pad2(n) { return ('0' + n).slice(-2); }
+
+function icsEscape(t) {
+  return String(t || '')
+    .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+// RFC 5545: 한 줄 75octet 넘으면 다음 줄을 공백 하나로 시작해 접어야(fold) 한다.
+function icsFold(line) {
+  var out = '', i = 0;
+  while (line.length - i > 75) { out += (i ? ' ' : '') + line.slice(i, i + 75) + '\r\n'; i += 75; }
+  return out + (i ? ' ' : '') + line.slice(i);
+}
+function icsLocalStamp(y, m, d, hh, mm) {
+  return y + pad2(m) + pad2(d) + 'T' + pad2(hh) + pad2(mm) + '00';
+}
+function icsUtcNow() {
+  var n = new Date();
+  return n.getUTCFullYear() + pad2(n.getUTCMonth()+1) + pad2(n.getUTCDate()) + 'T'
+       + pad2(n.getUTCHours()) + pad2(n.getUTCMinutes()) + pad2(n.getUTCSeconds()) + 'Z';
+}
+
+function buildIcsForDays(days) {
+  var picks = loadPicks();
+  var sessions = ALL.filter(function(s) {
+    return days.has(s.day) && myOf(s.sessionID).verdict === 'keep';
+  });
+  // 날짜 → 시간순
+  sessions.sort(function(a, b) {
+    return (a.day||'').localeCompare(b.day||'') || (a.start_time||'99:99').localeCompare(b.start_time||'99:99');
+  });
+
+  var lines = [];
+  lines.push('BEGIN:VCALENDAR');
+  lines.push('VERSION:2.0');
+  lines.push('PRODID:-//re:Invent 2026 세션 도구//iCal Export//KO');
+  lines.push('CALSCALE:GREGORIAN');
+  lines.push('METHOD:PUBLISH');
+  // America/Los_Angeles, re:Invent 기간은 PST(UTC-8) 고정. 캘린더 앱이 자체 TZ 규칙을 우선할 수도 있어 VTIMEZONE도 명시한다.
+  lines.push('BEGIN:VTIMEZONE');
+  lines.push('TZID:' + ICS_TZID);
+  lines.push('BEGIN:STANDARD');
+  lines.push('DTSTART:20261101T020000');
+  lines.push('TZOFFSETFROM:-0700');
+  lines.push('TZOFFSETTO:-0800');
+  lines.push('TZNAME:PST');
+  lines.push('END:STANDARD');
+  lines.push('END:VTIMEZONE');
+
+  var stamp = icsUtcNow();
+  var noTimeCount = 0;
+
+  sessions.forEach(function(s) {
+    var dinfo = ICS_DAY_MAP[s.day];
+    if (!dinfo) return; // 키노트/파티 등 날짜 매핑 안 되는 항목은 건너뜀(없음)
+
+    var hh, mm, dur;
+    if (s.start_time) {
+      var p = s.start_time.split(':'); hh = +p[0]; mm = +p[1];
+      dur = s.length || 60;
+    } else {
+      // 시간 미정 세션은 하루짜리 종일 이�트 대신, 눈에 띄게 09:00 placeholder 60분으로 넣고 제목에 표시한다
+      hh = 9; mm = 0; dur = 60; noTimeCount++;
+    }
+    var startMin = hh*60 + mm;
+    var endMin = startMin + dur;
+    var endDay = dinfo; // 자정 넘기는 세션 없음(최대 480분 세션도 자정 전 종료)
+    var endHH = Math.floor(endMin/60) % 24, endMM = endMin % 60;
+
+    var uid = (s.sessionID || s.code || Math.random().toString(36).slice(2)) + '@reinvent2026.local';
+    var cnt = picks[s.sessionID] || 0;
+    var titlePrefix = s.start_time ? '' : '[시간미정] ';
+    var summary = titlePrefix + '[' + (s.code||'') + '] ' + (s.title||'');
+    var descParts = [];
+    if (s.company) descParts.push('발표: ' + s.company);
+    if (cnt > 0) descParts.push('우선순위: ' + PICK_ICONS[cnt]);
+    descParts.push(myOf(s.sessionID).note ? '내 메모: ' + myOf(s.sessionID).note : '');
+    descParts.push(s.ko_desc || '');
+    var description = descParts.filter(Boolean).join('\n\n');
+
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:' + uid);
+    lines.push('DTSTAMP:' + stamp);
+    lines.push(icsFold('DTSTART;TZID=' + ICS_TZID + ':' + icsLocalStamp(dinfo.y, dinfo.m, dinfo.d, hh, mm)));
+    lines.push(icsFold('DTEND;TZID=' + ICS_TZID + ':' + icsLocalStamp(endDay.y, endDay.m, endDay.d, endHH, endMM)));
+    lines.push(icsFold('SUMMARY:' + icsEscape(summary)));
+    if (s.venue) lines.push(icsFold('LOCATION:' + icsEscape(s.venue + (s.room ? ' / ' + s.room : ''))));
+    if (description) lines.push(icsFold('DESCRIPTION:' + icsEscape(description)));
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+  return { text: lines.join('\r\n') + '\r\n', count: sessions.length, noTimeCount: noTimeCount };
+}
+
+function downloadIcsForSelectedDays() {
+  var days = state.days.size > 0 ? state.days : new Set(Object.keys(ICS_DAY_MAP));
+  var result = buildIcsForDays(days);
+  if (result.count === 0) {
+    toast('선택한 요일에 "참석" 세션이 없습니다.');
+    return;
+  }
+  var blob = new Blob([result.text], { type: 'text/calendar;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var dayLabel = state.days.size > 0
+    ? Array.from(state.days).map(function(d){ return ICS_DAY_MAP[d] ? pad2(ICS_DAY_MAP[d].m)+pad2(ICS_DAY_MAP[d].d) : ''; }).join('-')
+    : 'all';
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'reinvent2026-' + dayLabel + '.ics';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  var msg = result.count + '개 일정 다운로드';
+  if (result.noTimeCount > 0) msg += ' (시간미정 ' + result.noTimeCount + '개는 09:00으로 표시)';
+  toast(msg);
+}
+
+// 요일을 하나 이상 고르면 다운로드 버튼을 보이고, 선택한 요일 중 "참석" 개수를 라벨에 표시
+function updateIcsButton() {
+  var btn = document.getElementById('btn-ics');
+  if (!btn) return;
+  var days = state.days.size > 0 ? state.days : new Set(Object.keys(ICS_DAY_MAP));
+  var cnt = ALL.filter(function(s){ return days.has(s.day) && myOf(s.sessionID).verdict === 'keep'; }).length;
+  btn.style.display = '';
+  btn.textContent = '📅 캘린더 다운로드 (' + cnt + ')';
+  btn.disabled = cnt === 0;
+  btn.title = state.days.size > 0
+    ? '선택한 요일의 참석 세션을 .ics로 내려받습니다.'
+    : '요일을 선택하지 않으면 전체 기간의 참석 세션을 내려받습니다.';
+}
+
+/* ---------------------------------------------------------------
  * 7. 수파베이스 — 저장/로드 (Controller → Model 개인 데이터)
  * ------------------------------------------------------------- */
 function requireLogin() {
@@ -350,6 +498,7 @@ async function upsertMine(sid, patch) {
   if (!requireLogin()) return;
   MY[sid] = Object.assign({ pick:0, verdict:'', note:'' }, MY[sid], patch); // 낙관적 반영
   render();
+  updateIcsButton();
   var row = {
     user_id: currentUser.id,
     session_id: sid,
@@ -436,21 +585,25 @@ function toast(msg) {
 async function boot() {
   reflectAuth();
   render();
+  updateIcsButton();
   if (!sb) {
     toast('수파베이스 미설정으로 열람 전용으로 동작합니다. (config.js 확인)');
     return;
   }
   await loadPublic();      // 비로그인 기본 화면 = 제작자 선택
   render();
+  updateIcsButton();
   var g = await sb.auth.getUser();
   currentUser = (g.data && g.data.user) || null;
   reflectAuth();
   if (currentUser) await loadMine(); else render();
+  updateIcsButton();
 
   sb.auth.onAuthStateChange(function(_evt, session) {
     currentUser = session ? session.user : null;
     reflectAuth();
     if (currentUser) loadMine(); else { MY = {}; render(); }
+    updateIcsButton();
   });
 }
 
