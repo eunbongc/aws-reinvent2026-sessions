@@ -111,8 +111,8 @@ tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; pa
 </div>
 <div class="filter-group">
   <span class="filter-label">요일</span>
-  <button class="filter-btn active-day" id="btn-day-all" onclick="setDayFilter('all',this)">전체</button>
-  <button class="filter-btn" id="btn-day-mon" onclick="toggleDay('Monday, Nov 30',this)">11/30 월</button>
+  <button class="filter-btn" id="btn-day-all" onclick="setDayFilter('all',this)">전체</button>
+  <button class="filter-btn active-day" id="btn-day-mon" onclick="toggleDay('Monday, Nov 30',this)">11/30 월</button>
   <button class="filter-btn" id="btn-day-tue" onclick="toggleDay('Tuesday, Dec 01',this)">12/1 화</button>
   <button class="filter-btn" id="btn-day-wed" onclick="toggleDay('Wednesday, Dec 02',this)">12/2 수</button>
   <button class="filter-btn" id="btn-day-thu" onclick="toggleDay('Thursday, Dec 03',this)">12/3 목</button>
@@ -129,8 +129,8 @@ tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; pa
 </div>
 <div class="filter-group">
   <span class="filter-label">참석 여부</span>
-  <button class="filter-btn active-verdict" id="btn-vd-all" onclick="setVerdictFilter('all',this)">전체</button>
-  <button class="filter-btn" onclick="setVerdictFilter('keep',this)">참석</button>
+  <button class="filter-btn" id="btn-vd-all" onclick="setVerdictFilter('all',this)">전체</button>
+  <button class="filter-btn active-verdict" onclick="setVerdictFilter('keep',this)">참석</button>
   <button class="filter-btn" onclick="setVerdictFilter('hold',this)">보류</button>
   <button class="filter-btn" onclick="setVerdictFilter('drop',this)">제외</button>
   <button class="filter-btn" onclick="setVerdictFilter('none',this)">미검토</button>
@@ -162,9 +162,9 @@ tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; pa
 <div id="toast"></div>
 
 <!-- Model(공개) → 설정 → 수파베이스 클라이언트 → Controller 순으로 로드 -->
-<script src="sessions.js?v=20261110b"></script>
-<script src="config.js?v=20261110b"></script>
+<script src="sessions.js?v=20261110c"></script>
+<script src="config.js?v=20261110c"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=20261110b"></script>
+<script src="app.js?v=20261110c"></script>
 </body>
 </html>
