@@ -118,15 +118,6 @@ tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; pa
   <button class="filter-btn" id="btn-day-thu" onclick="toggleDay('Thursday, Dec 03',this)">12/3 목</button>
   <button class="filter-btn" id="btn-day-fri" onclick="toggleDay('Friday, Dec 04',this)">12/4 금</button>
 </div>
-<div class="filter-group" id="ics-group">
-  <span class="filter-label">캘린더</span>
-  <button class="ics-btn" data-day="all" data-label="📅 전체" onclick="downloadIcs(this.getAttribute('data-day'))">📅 전체</button>
-  <button class="ics-btn" data-day="Monday, Nov 30" data-label="11/30 월" onclick="downloadIcs(this.getAttribute('data-day'))">11/30 월</button>
-  <button class="ics-btn" data-day="Tuesday, Dec 01" data-label="12/1 화" onclick="downloadIcs(this.getAttribute('data-day'))">12/1 화</button>
-  <button class="ics-btn" data-day="Wednesday, Dec 02" data-label="12/2 수" onclick="downloadIcs(this.getAttribute('data-day'))">12/2 수</button>
-  <button class="ics-btn" data-day="Thursday, Dec 03" data-label="12/3 목" onclick="downloadIcs(this.getAttribute('data-day'))">12/3 목</button>
-  <button class="ics-btn" data-day="Friday, Dec 04" data-label="12/4 금" onclick="downloadIcs(this.getAttribute('data-day'))">12/4 금</button>
-</div>
 <div class="filter-group">
   <span class="filter-label">장소</span>
   <button class="filter-btn active-venue" onclick="setFilter('venue','all',this)">전체</button>
@@ -149,6 +140,7 @@ tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; pa
   <span class="count-label" id="countLabel">242개 표시 중</span>
   <button class="reset-btn" onclick="copyPicks(2)" id="copy-btn2">📋 ⭕⭕이상 복사</button>
   <button class="reset-btn" onclick="copyPicks(1)" id="copy-btn">📋 ⭕ 전체 복사</button>
+  <button class="ics-btn" id="btn-ics" onclick="downloadIcs()" style="margin-left:8px;">📅 참석 일정 다운로드</button>
 </div>
 <table id="tbl">
 <thead>
@@ -170,9 +162,9 @@ tbody tr.abstract-row td { background: #f8f9fa; font-size: 11px; color: #444; pa
 <div id="toast"></div>
 
 <!-- Model(공개) → 설정 → 수파베이스 클라이언트 → Controller 순으로 로드 -->
-<script src="sessions.js"></script>
-<script src="config.js"></script>
+<script src="sessions.js?v=20261110b"></script>
+<script src="config.js?v=20261110b"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js"></script>
+<script src="app.js?v=20261110b"></script>
 </body>
 </html>

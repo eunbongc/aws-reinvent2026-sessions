@@ -504,29 +504,24 @@ function buildIcsForDays(days) {
   return { text: lines.join('\r\n') + '\r\n', count: sessions.length, noTimeCount: noTimeCount };
 }
 
-// dayKey: 'all' 이면 전체 기간, 아니면 ICS_DAY_MAP 의 요일 키(예: 'Thursday, Dec 03') 하나
-function icsDaysFor(dayKey) {
-  return dayKey === 'all' ? new Set(Object.keys(ICS_DAY_MAP)) : new Set([dayKey]);
-}
-function icsCountFor(dayKey) {
-  var days = icsDaysFor(dayKey);
+// "참석"으로 고른 세션 전체(전 기간)를 .ics 하나로 내려받는다. 요일 필터와는 무관하다.
+function icsAllDays() { return new Set(Object.keys(ICS_DAY_MAP)); }
+function icsCount() {
+  var days = icsAllDays();
   return ALL.filter(function(s){ return days.has(s.day) && myOf(s.sessionID).verdict === 'keep'; }).length;
 }
 
-function downloadIcs(dayKey) {
-  var result = buildIcsForDays(icsDaysFor(dayKey));
+function downloadIcs() {
+  var result = buildIcsForDays(icsAllDays());
   if (result.count === 0) {
     toast('"참석"으로 고른 세션이 없습니다.');
     return;
   }
   var blob = new Blob([result.text], { type: 'text/calendar;charset=utf-8' });
   var url = URL.createObjectURL(blob);
-  var dayLabel = dayKey === 'all'
-    ? 'all'
-    : (ICS_DAY_MAP[dayKey] ? pad2(ICS_DAY_MAP[dayKey].m) + pad2(ICS_DAY_MAP[dayKey].d) : 'day');
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'reinvent2026-' + dayLabel + '.ics';
+  a.download = 'reinvent2026-all.ics';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -536,19 +531,14 @@ function downloadIcs(dayKey) {
   toast(msg);
 }
 
-// 캘린더 버튼(전체 + 요일별)에 "참석" 개수를 표시하고, 0개면 비활성화한다.
+// 다운로드 버튼에 "참석" 개수를 표시하고, 0개면 비활성화한다.
 function updateIcsButton() {
-  var btns = document.querySelectorAll('.ics-btn');
-  for (var i = 0; i < btns.length; i++) {
-    var b = btns[i];
-    var key = b.getAttribute('data-day');
-    var cnt = icsCountFor(key);
-    b.textContent = b.getAttribute('data-label') + ' (' + cnt + ')';
-    b.disabled = cnt === 0;
-    b.title = cnt === 0
-      ? '"참석"으로 고른 세션이 없습니다.'
-      : (key === 'all' ? '전체 기간의 참석 세션을 .ics로 내려받습니다.' : b.getAttribute('data-label') + ' 참석 세션을 .ics로 내려받습니다.');
-  }
+  var btn = document.getElementById('btn-ics');
+  if (!btn) return;
+  var cnt = icsCount();
+  btn.textContent = '📅 참석 일정 다운로드 (' + cnt + ')';
+  btn.disabled = cnt === 0;
+  btn.title = cnt === 0 ? '"참석"으로 고른 세션이 없습니다.' : '"참석"으로 고른 세션 전체를 .ics 파일 하나로 내려받습니다.';
 }
 
 /* ---------------------------------------------------------------
