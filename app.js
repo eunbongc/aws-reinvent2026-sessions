@@ -167,6 +167,21 @@ function badges(s) {
   if (src.indexOf('retail')        >= 0) h += '<span class="badge b-retail">Retail</span>';
   return h || '<span style="color:#ccc">-</span>';
 }
+// badges()와 같은 판별 규칙의 텍스트 버전(캘린더용). badges()의 조건을 바꾸면 여기도 함께 바꾼다.
+function tagLabels(s) {
+  var f = s.features||'', ap = s.session_appendices||'', src = s.sources||[];
+  var t = [];
+  if (src.indexOf('keynote')       >= 0) t.push('키노트');
+  if (f.indexOf('Walk up only')    >= 0) t.push('Walk up only');
+  if (/(^|,\s*)Full(,|$)/.test(f))       t.push('Full');
+  if (f.indexOf('Customer story')  >= 0) t.push('기업사례');
+  if (ap.indexOf('Sponsored')      >= 0) t.push('광고');
+  if (ap.indexOf('New launch')     >= 0) t.push('New');
+  if (f.indexOf('AWS Partners')    >= 0) t.push('파트너');
+  if (src.indexOf('robotics')      >= 0) t.push('Robotics');
+  if (src.indexOf('retail')        >= 0) t.push('Retail');
+  return t;
+}
 function endOf(s) {
   if (!s.start_time || !s.length) return '';
   var p = s.start_time.split(':'); var m = (+p[0])*60 + (+p[1]) + s.length;
@@ -424,8 +439,13 @@ function buildIcsForDays(days) {
     var uid = (s.sessionID || s.code || Math.random().toString(36).slice(2)) + '@reinvent2026.local';
     var cnt = picks[s.sessionID] || 0;
     var titlePrefix = s.start_time ? '' : '[시간미정] ';
-    var summary = titlePrefix + '[' + (s.code||'') + '] ' + (s.title||'');
+    // 참석 가능 여부에 직접 영향을 주는 태그(Full, Walk up only)는 목록 화면에서도 보이도록 제목 앞에 붙인다.
+    var tags = tagLabels(s);
+    var flagPrefix = ['Full', 'Walk up only'].filter(function(x){ return tags.indexOf(x) >= 0; })
+      .map(function(x){ return '[' + x + '] '; }).join('');
+    var summary = titlePrefix + flagPrefix + '[' + (s.code||'') + '] ' + (s.title||'');
     var descParts = [];
+    if (tags.length) descParts.push('태그: ' + tags.join(', '));
     if (s.company) descParts.push('발표: ' + s.company);
     if (cnt > 0) descParts.push('우선순위: ' + PICK_ICONS[cnt]);
     descParts.push(myOf(s.sessionID).note ? '내 메모: ' + myOf(s.sessionID).note : '');
