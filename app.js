@@ -54,8 +54,7 @@ function loadPicks() {                       // 기존 인터페이스 유지
 /* ---------------------------------------------------------------
  * 3. 상태 / 필터 / 정렬 (기존 로직 그대로 이식)
  * ------------------------------------------------------------- */
-// 첫 화면 기본 선택: 월요일(11/30) + 참석. index.html 의 버튼 선택 표시(active-day / active-verdict)와 함께 바꿔야 한다.
-const state = { cat: 'all', days: new Set(['Monday, Nov 30']), venue: 'all', verdict: 'keep' };
+const state = { cat: 'all', days: new Set(), venue: 'all', verdict: 'all' };
 let sortKey = 'picks', sortAsc = false;
 const expanded = new Set();
 
