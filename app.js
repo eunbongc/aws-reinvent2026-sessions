@@ -389,6 +389,27 @@ function icsUtcNow() {
        + pad2(n.getUTCHours()) + pad2(n.getUTCMinutes()) + pad2(n.getUTCSeconds()) + 'Z';
 }
 
+// 일정 제목·본문용 장소 한글 표기(없는 장소는 원문 그대로 쓴다)
+var VENUE_KO = {
+  'Venetian':       '베네시안',
+  'Caesars Palace': '시저스 팰리스',
+  'Caesars Forum':  '시저스 포럼',
+  'MGM Grand':      'MGM 그랜드',
+  'Wynn/Encore':    '윈/앙코르'
+};
+var WEEK_KO = ['일', '월', '화', '수', '목', '금', '토'];
+function hhmm(h, m) { return pad2(h) + ':' + pad2(m); }
+// 줄표(— – ―)는 본문에 쓰지 않는 규칙이라 표시할 때만 바꾼다(원본 데이터는 그대로 둔다).
+function dashToSentence(t) {
+  return String(t || '').replace(/([.!?])?\s*[—–―]\s*/g, function(m, p) { return (p || '.') + ' '; }).trim();
+}
+function dashToColon(t) {
+  return String(t || '').replace(/\s*[—–―]\s*/g, ': ').trim();
+}
+function dashToSpace(t) {
+  return String(t || '').replace(/\s*[—–―]\s*/g, ' ').trim();
+}
+
 function buildIcsForDays(days) {
   var picks = loadPicks();
   var sessions = ALL.filter(function(s) {
@@ -438,19 +459,35 @@ function buildIcsForDays(days) {
 
     var uid = (s.sessionID || s.code || Math.random().toString(36).slice(2)) + '@reinvent2026.local';
     var cnt = picks[s.sessionID] || 0;
-    var titlePrefix = s.start_time ? '' : '[시간미정] ';
-    // 참석 가능 여부에 직접 영향을 주는 태그(Full, Walk up only)는 목록 화면에서도 보이도록 제목 앞에 붙인다.
     var tags = tagLabels(s);
-    var flagPrefix = ['Full', 'Walk up only'].filter(function(x){ return tags.indexOf(x) >= 0; })
-      .map(function(x){ return '[' + x + '] '; }).join('');
-    var summary = titlePrefix + flagPrefix + '[' + (s.code||'') + '] ' + (s.title||'');
-    var descParts = [];
-    if (tags.length) descParts.push('태그: ' + tags.join(', '));
-    if (s.company) descParts.push('발표: ' + s.company);
-    if (cnt > 0) descParts.push('우선순위: ' + PICK_ICONS[cnt]);
-    descParts.push(myOf(s.sessionID).note ? '내 메모: ' + myOf(s.sessionID).note : '');
-    descParts.push(s.ko_desc || '');
-    var description = descParts.filter(Boolean).join('\n\n');
+    var venueKo = VENUE_KO[s.venue] || s.venue || '';
+    var startTxt = s.start_time ? hhmm(hh, mm) : '시간미정';
+    // 제목: 시작시각(24시), 장소, 세션코드, 참석 가능 여부에 영향을 주는 태그(Full, Walk up only)
+    var flags = ['Full', 'Walk up only'].filter(function(x){ return tags.indexOf(x) >= 0; });
+    var summary = [startTxt, venueKo, s.code || ''].concat(flags).filter(Boolean).join(', ');
+
+    // 본문: 언제 / 어디 / 무엇을 먼저 보이게 한다(일반 텍스트).
+    var weekday = WEEK_KO[new Date(Date.UTC(dinfo.y, dinfo.m - 1, dinfo.d)).getUTCDay()];
+    var when = dinfo.y + '년 ' + dinfo.m + '월 ' + dinfo.d + '일(' + weekday + ') ';
+    when += s.start_time
+      ? hhmm(hh, mm) + '~' + hhmm(endHH, endMM) + ' (라스베이거스 현지 시각)'
+      : '시간 미정 (캘린더에는 임시로 ' + hhmm(hh, mm) + '~' + hhmm(endHH, endMM) + '로 표시)';
+    var where = venueKo + (s.venue && venueKo !== s.venue ? ' (' + s.venue + ')' : '')
+      + (s.room ? ', ' + s.room.replace(/\s*\|\s*/g, ', ') : '');
+    var info = ['언제  ' + when, '어디  ' + where,
+                '무엇  ' + (s.type ? '[' + s.type + '] ' : '') + dashToColon(s.title)];
+    if (s.company) info.push('발표  ' + s.company);
+    if (tags.length) info.push('태그  ' + tags.join(', '));
+    var blocks = [info.join('\n')];
+    if (s.ko_desc) blocks.push('이런 내용입니다\n' + dashToSentence(s.ko_desc));
+    var meta = ['코드 ' + (s.code || '')];
+    if (s.level) meta.push('레벨 ' + dashToSpace(s.level));
+    if (s.topic) meta.push('주제 ' + s.topic);
+    blocks.push('세션 정보\n' + meta.join(' / '));
+    if (cnt > 0) blocks.push('내 우선순위\n' + PICK_ICONS[cnt]);
+    var myNote = myOf(s.sessionID).note;
+    if (myNote) blocks.push('내 메모\n' + myNote);
+    var description = blocks.join('\n\n');
 
     lines.push('BEGIN:VEVENT');
     lines.push('UID:' + uid);
@@ -467,18 +504,26 @@ function buildIcsForDays(days) {
   return { text: lines.join('\r\n') + '\r\n', count: sessions.length, noTimeCount: noTimeCount };
 }
 
-function downloadIcsForSelectedDays() {
-  var days = state.days.size > 0 ? state.days : new Set(Object.keys(ICS_DAY_MAP));
-  var result = buildIcsForDays(days);
+// dayKey: 'all' 이면 전체 기간, 아니면 ICS_DAY_MAP 의 요일 키(예: 'Thursday, Dec 03') 하나
+function icsDaysFor(dayKey) {
+  return dayKey === 'all' ? new Set(Object.keys(ICS_DAY_MAP)) : new Set([dayKey]);
+}
+function icsCountFor(dayKey) {
+  var days = icsDaysFor(dayKey);
+  return ALL.filter(function(s){ return days.has(s.day) && myOf(s.sessionID).verdict === 'keep'; }).length;
+}
+
+function downloadIcs(dayKey) {
+  var result = buildIcsForDays(icsDaysFor(dayKey));
   if (result.count === 0) {
-    toast('선택한 요일에 "참석" 세션이 없습니다.');
+    toast('"참석"으로 고른 세션이 없습니다.');
     return;
   }
   var blob = new Blob([result.text], { type: 'text/calendar;charset=utf-8' });
   var url = URL.createObjectURL(blob);
-  var dayLabel = state.days.size > 0
-    ? Array.from(state.days).map(function(d){ return ICS_DAY_MAP[d] ? pad2(ICS_DAY_MAP[d].m)+pad2(ICS_DAY_MAP[d].d) : ''; }).join('-')
-    : 'all';
+  var dayLabel = dayKey === 'all'
+    ? 'all'
+    : (ICS_DAY_MAP[dayKey] ? pad2(ICS_DAY_MAP[dayKey].m) + pad2(ICS_DAY_MAP[dayKey].d) : 'day');
   var a = document.createElement('a');
   a.href = url;
   a.download = 'reinvent2026-' + dayLabel + '.ics';
@@ -491,18 +536,19 @@ function downloadIcsForSelectedDays() {
   toast(msg);
 }
 
-// 요일을 하나 이상 고르면 다운로드 버튼을 보이고, 선택한 요일 중 "참석" 개수를 라벨에 표시
+// 캘린더 버튼(전체 + 요일별)에 "참석" 개수를 표시하고, 0개면 비활성화한다.
 function updateIcsButton() {
-  var btn = document.getElementById('btn-ics');
-  if (!btn) return;
-  var days = state.days.size > 0 ? state.days : new Set(Object.keys(ICS_DAY_MAP));
-  var cnt = ALL.filter(function(s){ return days.has(s.day) && myOf(s.sessionID).verdict === 'keep'; }).length;
-  btn.style.display = '';
-  btn.textContent = '📅 캘린더 다운로드 (' + cnt + ')';
-  btn.disabled = cnt === 0;
-  btn.title = state.days.size > 0
-    ? '선택한 요일의 참석 세션을 .ics로 내려받습니다.'
-    : '요일을 선택하지 않으면 전체 기간의 참석 세션을 내려받습니다.';
+  var btns = document.querySelectorAll('.ics-btn');
+  for (var i = 0; i < btns.length; i++) {
+    var b = btns[i];
+    var key = b.getAttribute('data-day');
+    var cnt = icsCountFor(key);
+    b.textContent = b.getAttribute('data-label') + ' (' + cnt + ')';
+    b.disabled = cnt === 0;
+    b.title = cnt === 0
+      ? '"참석"으로 고른 세션이 없습니다.'
+      : (key === 'all' ? '전체 기간의 참석 세션을 .ics로 내려받습니다.' : b.getAttribute('data-label') + ' 참석 세션을 .ics로 내려받습니다.');
+  }
 }
 
 /* ---------------------------------------------------------------
