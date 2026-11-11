@@ -110,7 +110,7 @@ function matches(s) {
   var cat = state.cat, days = state.days, venue = state.venue;
   if (cat === 'my_picks'        && !(myOf(s.sessionID).pick > 0))     return false;
   if (cat === 'keynote'         && src.indexOf('keynote') < 0)        return false;
-  if (cat === 'party'           && src.indexOf('party') < 0)          return false;
+  if (cat === 'networking'      && src.indexOf('networking') < 0)     return false;
   if (cat === 'customer_story'  && f.indexOf('Customer story') < 0)   return false;
   if (cat === 'robotics'        && src.indexOf('robotics') < 0)       return false;
   if (cat === 'retail'          && src.indexOf('retail') < 0)         return false;
@@ -442,7 +442,7 @@ function buildIcsForDays(days) {
 
   sessions.forEach(function(s) {
     var dinfo = ICS_DAY_MAP[s.day];
-    if (!dinfo) return; // 키노트/파티 등 날짜 매핑 안 되는 항목은 건너뜀(없음)
+    if (!dinfo) return; // 키노트/네트워킹 등 날짜 매핑 안 되는 항목은 건너뜀(없음)
 
     var hh, mm, dur;
     if (s.start_time) {
