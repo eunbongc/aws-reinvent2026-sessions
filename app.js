@@ -595,6 +595,7 @@ async function loadMine() {
     });
   }
   render();
+  updateIcsButton();   // 불러오기가 끝난 뒤 참석 개수로 버튼을 다시 계산한다(비동기 로드 중 0개로 꺼지는 문제 방지)
 }
 
 /* ---------------------------------------------------------------
@@ -614,7 +615,7 @@ async function signIn() {
 async function signOut() {
   if (sb) await sb.auth.signOut();
   currentUser = null; MY = {};
-  reflectAuth(); render();
+  reflectAuth(); render(); updateIcsButton();
 }
 function reflectAuth() {
   var box = document.getElementById('authBox');
